@@ -17,5 +17,11 @@ circ.add_element(IDD1)
 
 print(circ._nodes)
 
+for i in circ._elements:
+    if i._type == ComponentType.R.name:
+        i.resistorMethod()
+    elif i._type == ComponentType.IDD.name:
+        i.currentSourceMethod()
+
 
 
