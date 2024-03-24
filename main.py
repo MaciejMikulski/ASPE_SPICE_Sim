@@ -19,5 +19,11 @@ circ.set_gnd_node(3)
 circ.construct_matrix()
 print(circ.op_analisys())
 
+for i in circ._elements:
+    if i._type == ComponentType.R.name:
+        i.resistorMethod()
+    elif i._type == ComponentType.IDD.name:
+        i.currentSourceMethod()
+
 
 

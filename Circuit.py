@@ -4,7 +4,7 @@ from Component import *
 class Circuit:
 
     def __init__(self):
-        self._elements_arr = []
+        self._elements = []
         self._nodes = []
         self._right_side_vect = np.empty(0)
         self._conductance_matrix = np.empty(0)
@@ -12,7 +12,7 @@ class Circuit:
         print(self._conductance_matrix.size)
 
     def add_element(self, element: Component):
-        self._elements_arr.append(element)
+        self._elements.append(element)
         tmp_ports = element.get_ports()
         for port in tmp_ports:
             if port not in self._nodes:

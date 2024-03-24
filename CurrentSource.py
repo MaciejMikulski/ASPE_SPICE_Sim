@@ -20,3 +20,6 @@ class CurrentSource(Component):
         print("Type: " + str(self._type) + str(self._id))
         print("Ports: " + str(self._ports))
         print("Current: " + str(self._current) + " [A]")
+
+    def currentSourceMethod(self):
+        print("Current source method")
