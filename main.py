@@ -3,27 +3,21 @@ import numpy as np
 from Circuit import *
 from Resistor import *
 from CurrentSource import *
+from VoltageSource import *
 
 R1 = Resistor(1, [1,2], 1000.0)
 R2 = Resistor(2, [2,3], 2000.0)
 R3 = Resistor(3, [2,3], 3000.0)
 IDD1 = CurrentSource(1, [3,1], 0.01)
+VDD1 = VoltageSource(1, [2,3], 5)
 
 circ = Circuit()
 circ.add_element(R1)
 circ.add_element(R2)
 circ.add_element(R3)
 circ.add_element(IDD1)
+circ.add_element(VDD1)
 
 circ.set_gnd_node(3)
 circ.construct_matrix()
 print(circ.op_analisys())
-
-for i in circ._elements:
-    if i._type == ComponentType.R.name:
-        i.resistorMethod()
-    elif i._type == ComponentType.IDD.name:
-        i.currentSourceMethod()
-
-
-

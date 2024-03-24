@@ -1,17 +1,17 @@
 from Component import *
 
-class CurrentSource(Component):
+class VoltageSource(Component):
 
-    def __init__(self, id, ports, current):
+    def __init__(self, id, ports, voltage):
         self._id = id
-        self._type: ComponentType = ComponentType.IDD.name
+        self._type: ComponentType = ComponentType.VDD.name
         self._ports = []
         for x in ports:
             self.add_port(x)
-        self._current = current
+        self._voltage = voltage
 
-    def get_current(self):
-        return self._current
+    def get_voltage(self):
+        return self._voltage
     
     def get_ports(self):
         return super().get_ports()
@@ -19,4 +19,4 @@ class CurrentSource(Component):
     def print(self):
         print("Type: " + str(self._type) + str(self._id))
         print("Ports: " + str(self._ports))
-        print("Current: " + str(self._current) + " [A]")
+        print("Voltage: " + str(self._voltage) + " [V]")
