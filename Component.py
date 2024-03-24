@@ -4,6 +4,8 @@ class ComponentType(Enum):
     R = 1
     VDD = 2
     IDD = 3
+    DIO = 4
+    BJT = 5
 
 class Component:
 
