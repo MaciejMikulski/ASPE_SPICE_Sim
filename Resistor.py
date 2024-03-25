@@ -20,6 +20,3 @@ class Resistor(Component):
         print("Type: " + str(self._type) + str(self._id))
         print("Ports: " + str(self._ports))
         print("Resistence: " + str(self._resistance) + " [Ohm]")
-
-    def resistorMethod(self):
-        print("resistor method")

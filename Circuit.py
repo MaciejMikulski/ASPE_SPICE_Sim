@@ -49,7 +49,6 @@ class Circuit:
                 p_node_id = self._nodes.index(vdd_ports[0])
                 n_node_id = self._nodes.index(vdd_ports[1])
 
-                
                 tmp_col = np.zeros((node_num, 1))
                 tmp_row = np.zeros((1, node_num+1))
                 tmp_el = np.zeros((1,1))
@@ -58,26 +57,20 @@ class Circuit:
                 tmp_col[n_node_id, 0] -= 1
                 tmp_row[0, p_node_id] += 1
                 tmp_row[0, n_node_id] -= 1
-                tmp_el[0,0] = voltage 
+                tmp_el[0, 0] = voltage
 
-
-                print(self._conductance_matrix)
-                print(self._right_side_vect)
                 self._conductance_matrix = np.append(self._conductance_matrix, tmp_col, axis=1)
                 self._conductance_matrix = np.append(self._conductance_matrix, tmp_row, axis=0)
-                self._right_side_vect = np.append(self._right_side_vect, tmp_el, axis=0) 
-
-                print(self._conductance_matrix)
-                print(self._right_side_vect)           
+                self._right_side_vect = np.append(self._right_side_vect, tmp_el, axis=0)
                 
             else:
                 pass
 
-        #delete ground node from conductance matrix
+        # delete ground node from conductance matrix
         gnd_node_index = self._nodes.index(self._gnd_node)
         self._conductance_matrix = np.delete(self._conductance_matrix, gnd_node_index, 0)
         self._conductance_matrix = np.delete(self._conductance_matrix, gnd_node_index, 1)
-        #delete ground node from right side vector
+        # delete ground node from right side vector
         self._right_side_vect = np.delete(self._right_side_vect, gnd_node_index, 0)
 
     def set_gnd_node(self, id):
@@ -85,7 +78,6 @@ class Circuit:
             self._gnd_node = id
         else:
             raise Exception("Specified nonexistent node as GND.")
-
 
     def op_analisys(self):
         return np.linalg.solve(self._conductance_matrix, self._right_side_vect)
