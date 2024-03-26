@@ -6,81 +6,97 @@ class Circuit:
     def __init__(self):
         self._elements = []
         self._nodes = []
-        self._right_side_vect = np.empty(0)
-        self._conductance_matrix = np.empty(0)
-        self._gnd_node = 0
-        print(self._conductance_matrix.size)
+        self._rightSideVect = np.empty(0)
+        self._conductanceMatrix = np.empty(0)
+        self._gndNode = 0
+        print(self._conductanceMatrix.size)
 
     def add_element(self, element: Component):
         self._elements.append(element)
-        tmp_ports = element.get_ports()
-        for port in tmp_ports:
+        tmpPorts = element.get_ports()
+        for port in tmpPorts:
             if port not in self._nodes:
                 self._nodes.append(port)
         
-    def construct_matrix(self):
+    def construct_matrix(self, prevVoltVect):
         node_num = len(self._nodes)
-        self._conductance_matrix = np.zeros((node_num, node_num))
-        self._right_side_vect = np.zeros((node_num, 1))
+        self._conductanceMatrix = np.zeros((node_num, node_num))
+        self._rightSideVect = np.zeros((node_num, 1))
 
         for component in self._elements:
             comp_type = component.get_type()
             if comp_type == ComponentType.R.name:
-                r_ports = component.get_ports()
+                rPorts = component.get_ports()
                 conductance = 1.0 / component.get_resistance()
-                p_node_id = self._nodes.index(r_ports[0])
-                n_node_id = self._nodes.index(r_ports[1])
-                self._conductance_matrix[p_node_id, p_node_id] += conductance
-                self._conductance_matrix[p_node_id, n_node_id] -= conductance
-                self._conductance_matrix[n_node_id, p_node_id] -= conductance
-                self._conductance_matrix[n_node_id, n_node_id] += conductance
+                pNodeId = self._nodes.index(rPorts[0])
+                nNodeId = self._nodes.index(rPorts[1])
+                self._conductanceMatrix[pNodeId, pNodeId] += conductance
+                self._conductanceMatrix[pNodeId, nNodeId] -= conductance
+                self._conductanceMatrix[nNodeId, pNodeId] -= conductance
+                self._conductanceMatrix[nNodeId, nNodeId] += conductance
                 
             elif comp_type == ComponentType.IDD.name:
-                idd_ports = component.get_ports()
+                iddPorts = component.get_ports()
                 current = component.get_current()
-                p_node_id = self._nodes.index(idd_ports[0])
-                n_node_id = self._nodes.index(idd_ports[1])
-                self._right_side_vect[p_node_id, 0] -= current
-                self._right_side_vect[n_node_id, 0] += current
+                pNodeId = self._nodes.index(iddPorts[0])
+                nNodeId = self._nodes.index(iddPorts[1])
+                self._rightSideVect[pNodeId, 0] -= current
+                self._rightSideVect[nNodeId, 0] += current
 
             elif comp_type == ComponentType.VDD.name:
-                vdd_ports = component.get_ports()
+                vddPorts = component.get_ports()
                 voltage = component.get_voltage()
-                p_node_id = self._nodes.index(vdd_ports[0])
-                n_node_id = self._nodes.index(vdd_ports[1])
+                pNodeId = self._nodes.index(vddPorts[0])
+                nNodeId = self._nodes.index(vddPorts[1])
 
-                tmp_col = np.zeros((node_num, 1))
-                tmp_row = np.zeros((1, node_num+1))
-                tmp_el = np.zeros((1,1))
+                tmpCol = np.zeros((node_num, 1))
+                tmpRow = np.zeros((1, node_num+1))
+                tmpEl = np.zeros((1,1))
 
-                tmp_col[p_node_id, 0] += 1
-                tmp_col[n_node_id, 0] -= 1
-                tmp_row[0, p_node_id] += 1
-                tmp_row[0, n_node_id] -= 1
-                tmp_el[0, 0] = voltage
+                tmpCol[pNodeId, 0] += 1
+                tmpCol[nNodeId, 0] -= 1
+                tmpRow[0, pNodeId] += 1
+                tmpRow[0, nNodeId] -= 1
+                tmpEl[0, 0] = voltage
 
-                self._conductance_matrix = np.append(self._conductance_matrix, tmp_col, axis=1)
-                self._conductance_matrix = np.append(self._conductance_matrix, tmp_row, axis=0)
-                self._right_side_vect = np.append(self._right_side_vect, tmp_el, axis=0)
-                
+                self._conductanceMatrix = np.append(self._conductanceMatrix, tmpCol, axis=1)
+                self._conductanceMatrix = np.append(self._conductanceMatrix, tmpRow, axis=0)
+                self._rightSideVect = np.append(self._rightSideVect, tmpEl, axis=0)
+
+            elif comp_type == ComponentType.VDD.name:
+                dioPorts = component.get_ports()
+                aNodeId = self._nodes.index(dioPorts[0])
+                kNodeId = self._nodes.index(dioPorts[1])
+                Ud = prevVoltVect[aNodeId] - prevVoltVect[kNodeId]
+
+                Gd, Ieq, Id = component.get_params(Ud)
+
+                self._conductanceMatrix[aNodeId, aNodeId] += Gd
+                self._conductanceMatrix[aNodeId, kNodeId] -= Gd
+                self._conductanceMatrix[kNodeId, aNodeId] -= Gd
+                self._conductanceMatrix[kNodeId, kNodeId] += Gd
+
+                self._rightSideVect[aNodeId, 0] -= Ieq
+                self._rightSideVect[kNodeId, 0] += Ieq
+
             else:
                 pass
 
         # delete ground node from conductance matrix
-        gnd_node_index = self._nodes.index(self._gnd_node)
-        self._conductance_matrix = np.delete(self._conductance_matrix, gnd_node_index, 0)
-        self._conductance_matrix = np.delete(self._conductance_matrix, gnd_node_index, 1)
+        gndNodeIndex = self._nodes.index(self._gndNode)
+        self._conductanceMatrix = np.delete(self._conductanceMatrix, gndNodeIndex, 0)
+        self._conductanceMatrix = np.delete(self._conductanceMatrix, gndNodeIndex, 1)
         # delete ground node from right side vector
-        self._right_side_vect = np.delete(self._right_side_vect, gnd_node_index, 0)
+        self._rightSideVect = np.delete(self._rightSideVect, gndNodeIndex, 0)
 
     def set_gnd_node(self, id):
         if id in self._nodes:
-            self._gnd_node = id
+            self._gndNode = id
         else:
             raise Exception("Specified nonexistent node as GND.")
 
     def op_analisys(self):
-        return np.linalg.solve(self._conductance_matrix, self._right_side_vect)
+        return np.linalg.solve(self._conductanceMatrix, self._rightSideVect)
 
     def tran_analisys(self):
         pass
