@@ -1,5 +1,6 @@
 import numpy as np
 from Component import *
+import Constants
 
 class Circuit:
 
@@ -120,7 +121,7 @@ class Circuit:
         self.construct_matrix() # Dummy matrix construction to get final length of voltage vect
 
 
-        for i in range(0, 20):
+        for i in range(0, Constants.OP_IRER_NUM):
             _prevVoltageVect = self._resultVect
 
             self.construct_matrix()
