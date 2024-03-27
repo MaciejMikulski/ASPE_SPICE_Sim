@@ -1,7 +1,7 @@
 from Component import *
 import Constants
 import math
-
+from Diode import *
 
 class TransistorBJT(Component):
 
@@ -24,11 +24,17 @@ class TransistorBJT(Component):
 
         self._alphaF = beta / (1 + beta)
 
-        tmpaLo, tmpbLo, tmpaHi, tmpbHi = self._calculate_linear_coeffs()
-        self._aLo = tmpaLo
-        self._bLo = tmpbLo
-        self._aHi = tmpaHi
-        self._bHi = tmpbHi
+        # Calculate linearisation parameters for emitter and collector diodes
+        tmpaLo, tmpbLo, tmpaHi, tmpbHi = self._calculate_linear_coeffs(self._alphaC, self._Isc)
+        self._aLoC = tmpaLo
+        self._bLoC = tmpbLo
+        self._aHiC = tmpaHi
+        self._bHiC = tmpbHi
+        tmpaLo, tmpbLo, tmpaHi, tmpbHi = self._calculate_linear_coeffs(self._alphaE, self._Ise)
+        self._aLoE = tmpaLo
+        self._bLoE = tmpbLo
+        self._aHiE = tmpaHi
+        self._bHiE = tmpbHi
 
     def get_ports(self):
         return super().get_ports()
@@ -36,9 +42,9 @@ class TransistorBJT(Component):
     def get_params(self, Ube, Ubc):
 
         # Calculate collector diode
-        GdC, Idc = self._calc_diode(Ubc, self._Isc, self._alphaC)
+        GdC, Idc = self._calc_diode(Ubc, self._Isc, self._alphaC, self._aLoC, self._bLoC, self._aHiC, self._bHiC)
         # Calculate emitter diode
-        GdE, Ide = self._calc_diode(Ube, self._Ise, self._alphaE)
+        GdE, Ide = self._calc_diode(Ube, self._Ise, self._alphaE, self._aLoE, self._bLoE, self._aHiE, self._bHiE)
 
         Ic = self._alphaF * Ide - Idc
         Ie = self._alphaF * Idc - Ide
@@ -46,10 +52,13 @@ class TransistorBJT(Component):
 
         return Ic, Ib, Ie
 
-    def _calculate_linear_coeffs(self):
+    def _calculate_linear_coeffs(self, alpha, Is):
         """Calculate coeffitients of linear functions for approximating Id"""
-        GdLo, ILo, IdLo = self.get_params(Constants.DIO_LO_THRES)
-        GdHi, IHi, IdHi = self.get_params(Constants.DIO_HI_THRES)
+        GdLo = alpha * Is * math.exp(alpha * Constants.DIO_LO_THRES)
+        IdLo = Is * (math.exp(alpha * Constants.DIO_LO_THRES) - 1.0)
+
+        GdHi = alpha * Is * math.exp(alpha * Constants.DIO_HI_THRES)
+        IdHi = Is * (math.exp(alpha * Constants.DIO_HI_THRES) - 1.0)
 
         aLo = GdLo
         aHi = GdHi
@@ -58,16 +67,16 @@ class TransistorBJT(Component):
 
         return aLo, bLo, aHi, bHi
 
-    def _calc_diode(self, Uf, Is, alpha):
+    def _calc_diode(self, Uf, Is, alpha, aLo, bLo, aHi, bHi):
         if Uf < Constants.DIO_LO_THRES:
-            Gd = self._aLo
-            Id = self._aLo * Uf + self._bLo
+            Gd = aLo
+            Id = aLo * Uf + bLo
         elif Uf <= Constants.DIO_HI_THRES:
             Gd = alpha * Is * math.exp(alpha * Uf)
             Id = Is * (math.exp(alpha * Uf) - 1.0)
         else:
-            Gd = self._aHi
-            Id = self._aHi * Uf + self._bHi
+            Gd = aHi
+            Id = aHi * Uf + bHi
 
         return Gd, Id
 

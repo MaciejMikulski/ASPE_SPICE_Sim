@@ -85,6 +85,21 @@ class Circuit:
                 self._rightSideVect[aNodeId, 0] -= Ieq
                 self._rightSideVect[kNodeId, 0] += Ieq
 
+            elif comp_type == ComponentType.BJT.name:
+                bjtPorts = component.get_ports()
+                cNodeId = self._nodes.index(bjtPorts[0])
+                bNodeId = self._nodes.index(bjtPorts[1])
+                eNodeId = self._nodes.index(bjtPorts[2])
+
+                Ube = self._resultVect[bNodeId] - self._resultVect[eNodeId]
+                Ubc = self._resultVect[bNodeId] - self._resultVect[cNodeId]
+
+                Ic, Ib, Ie = component.get_params(Ube, Ubc)
+
+                self._rightSideVect[cNodeId, 0] -= Ic
+                self._rightSideVect[bNodeId, 0] -= Ib
+                self._rightSideVect[eNodeId, 0] += Ie
+
             else:
                 pass
 
