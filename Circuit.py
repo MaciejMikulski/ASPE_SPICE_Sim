@@ -91,16 +91,24 @@ class Circuit:
         self.construct_matrix() # Dummy matrix construction to get final length of voltage vect
 
         for i in range(0, Constants.OP_IRER_NUM):
-            _prevVoltageVect = self._resultVect
+            prevVoltageVect = self._resultVect
+            prevCurrVect = self._rightSideVect
 
             self.construct_matrix()
-
+            if(i == 0):
+                self._resultVect[2] = 1.275
+                self._resultVect[4] = 0.575
             self._resultVect = np.linalg.solve(self._conductanceMatrix, self._rightSideVect)
             self._resultVect = self._append_gnd_node(self._resultVect)
-            diff = np.absolute(np.subtract(_prevVoltageVect, self._resultVect))
-            if np.amax(diff) < 0.001:
-                print("Ended in " + str(i) + " iteration")
+
+            # Check calculation end conditions
+            voltCheck = self._check_voltage_break_condition(self._resultVect, prevVoltageVect)
+            currCheck = self._check_current_break_condition(self._rightSideVect, prevCurrVect)
+            if (currCheck or voltCheck):
+                print("Ended in " + str(i) + " iteration.")
+                print("Voltage condition: " + str(voltCheck) + ". Current condition: " + str(currCheck) + ".")
                 break
+
 
         return self._resultVect
 
@@ -109,6 +117,17 @@ class Circuit:
 
 
     # Private functions
+    def _check_voltage_break_condition(self, currVoltVect, prevVoltVect):
+        voltDiff = np.absolute(np.subtract(prevVoltVect, currVoltVect))
+        voltAbs = np.absolute(currVoltVect)
+        prevVoltAbs = np.absolute(prevVoltVect)
+        return np.all(voltDiff < np.maximum(voltAbs, prevVoltAbs) * Constants.RELTOL + Constants.VNTOL)
+
+    def _check_current_break_condition(self, currCurrVect, prevCurrVect):
+        currDiff = np.absolute(np.subtract(prevCurrVect, self._rightSideVect))
+        currAbs = np.absolute(currCurrVect)
+        prevCurrAbs = np.absolute(prevCurrVect)
+        return np.all(currDiff < np.maximum(currAbs, prevCurrAbs) * Constants.RELTOL + Constants.ABSTOL)
 
     def _append_gnd_node(self, voltVect):
         """
@@ -163,21 +182,31 @@ class Circuit:
         pNodeId = self._nodes.index(vddPorts[0])
         nNodeId = self._nodes.index(vddPorts[1])
 
-        tmpCol = np.zeros((node_num, 1))
-        tmpRow = np.zeros((1, node_num+1))
+        # get the size of the conductance matrix
+        cond_matrix_shape = self._conductanceMatrix.shape
+
+        # and create temporary vectors, that will be appended to it
+        # after this operation the matrix will be higher and wider by 1 element
+        tmpCol = np.zeros((cond_matrix_shape[0], 1))
+        tmpRow = np.zeros((1, cond_matrix_shape[0]+1))
         tmpEl = np.zeros((1,1))
 
+        # Construct voltage source stamp
         tmpCol[pNodeId, 0] += 1
         tmpCol[nNodeId, 0] -= 1
         tmpRow[0, pNodeId] += 1
         tmpRow[0, nNodeId] -= 1
         tmpEl[0, 0] = voltage
 
+        # Append new column and row to the conductance matrix
         self._conductanceMatrix = np.append(self._conductanceMatrix, tmpCol, axis=1)
         self._conductanceMatrix = np.append(self._conductanceMatrix, tmpRow, axis=0)
+        # Append new element containing voltage to right side vector
         self._rightSideVect = np.append(self._rightSideVect, tmpEl, axis=0)
+        # Append new element to the result vector. Set its initial value to 0.0 V
         tmpEl[0, 0] = 0.0
         self._resultVect = np.append(self._resultVect, tmpEl, axis=0)
+
 
     def _matrix_add_diode(self, component):
         dioPorts = component.get_ports()
