@@ -95,16 +95,14 @@ class Circuit:
             prevCurrVect = self._rightSideVect
 
             self.construct_matrix()
-            if(i == 0):
-                self._resultVect[2] = 1.275
-                self._resultVect[4] = 0.575
             self._resultVect = np.linalg.solve(self._conductanceMatrix, self._rightSideVect)
             self._resultVect = self._append_gnd_node(self._resultVect)
 
             # Check calculation end conditions
             voltCheck = self._check_voltage_break_condition(self._resultVect, prevVoltageVect)
             currCheck = self._check_current_break_condition(self._rightSideVect, prevCurrVect)
-            if (currCheck or voltCheck):
+            if i == 0: currCheck = False
+            if (voltCheck or currCheck):
                 print("Ended in " + str(i) + " iteration.")
                 print("Voltage condition: " + str(voltCheck) + ". Current condition: " + str(currCheck) + ".")
                 break
@@ -118,13 +116,13 @@ class Circuit:
 
     # Private functions
     def _check_voltage_break_condition(self, currVoltVect, prevVoltVect):
-        voltDiff = np.absolute(np.subtract(prevVoltVect, currVoltVect))
+        voltDiff = np.absolute(np.subtract(currVoltVect, prevVoltVect))
         voltAbs = np.absolute(currVoltVect)
         prevVoltAbs = np.absolute(prevVoltVect)
         return np.all(voltDiff < np.maximum(voltAbs, prevVoltAbs) * Constants.RELTOL + Constants.VNTOL)
 
     def _check_current_break_condition(self, currCurrVect, prevCurrVect):
-        currDiff = np.absolute(np.subtract(prevCurrVect, self._rightSideVect))
+        currDiff = np.absolute(np.subtract(currCurrVect, prevCurrVect))
         currAbs = np.absolute(currCurrVect)
         prevCurrAbs = np.absolute(prevCurrVect)
         return np.all(currDiff < np.maximum(currAbs, prevCurrAbs) * Constants.RELTOL + Constants.ABSTOL)
