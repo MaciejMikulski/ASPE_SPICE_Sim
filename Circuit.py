@@ -101,7 +101,7 @@ class Circuit:
             # Check calculation end conditions
             voltCheck = self._check_voltage_break_condition(self._resultVect, prevVoltageVect)
             currCheck = self._check_current_break_condition(self._rightSideVect, prevCurrVect)
-            if i == 0: currCheck = False
+            if i == 0: currCheck = False # Fix. Without it the current check is always true in 1st iteration
             if (voltCheck or currCheck):
                 print("Ended in " + str(i) + " iteration.")
                 print("Voltage condition: " + str(voltCheck) + ". Current condition: " + str(currCheck) + ".")
@@ -235,5 +235,5 @@ class Circuit:
 
         self._rightSideVect[cNodeId, 0] -= Ic
         self._rightSideVect[bNodeId, 0] -= Ib
-        self._rightSideVect[eNodeId, 0] += Ie
+        self._rightSideVect[eNodeId, 0] -= Ie
     
