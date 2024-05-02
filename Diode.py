@@ -13,40 +13,36 @@ class Diode(Component):
         self._Is = satCurr
         fiT = (Constants.k * temp) / Constants.q
         self._alpha = 1.0 / (emissionCoeff * fiT)
-        tmpaLo, tmpbLo, tmpaHi, tmpbHi = self._calculate_linear_coeffs()
-        self._aLo = tmpaLo
-        self._bLo = tmpbLo
-        self._aHi = tmpaHi
-        self._bHi = tmpbHi
 
     def get_ports(self):
         return super().get_ports()
 
     def get_params(self, Ud):
         if Ud < Constants.DIO_LO_THRES:
-            Gd = self._aLo
-            Id = self._aLo * Ud + self._bLo
+            Udeff = Constants.DIO_LO_THRES
         elif Ud <= Constants.DIO_HI_THRES:
-            Gd = self._alpha * self._Is * math.exp(self._alpha * Ud)
-            Id = self._Is * (math.exp(self._alpha * Ud) - 1.0)
+            Udeff = Ud
         else:
-            Gd = self._aHi
-            Id = self._aHi * Ud + self._bHi
+            Udeff = Constants.DIO_HI_THRES
 
-        Ieq = Id - Gd * Ud
-        return Gd, Ieq, Id
+        Gd = self._alpha * self._Is * math.exp(self._alpha * Udeff)
+        Id = self._Is * (math.exp(self._alpha * Udeff) - 1.0)
+        Ieq = Id - Gd * Udeff
 
-    def _calculate_linear_coeffs(self):
-        """Calculate coeffitients of linear functions for approximating Id"""
-        GdLo, ILo, IdLo = self.get_params(Constants.DIO_LO_THRES)
-        GdHi, IHi, IdHi = self.get_params(Constants.DIO_HI_THRES)
-
-        aLo = GdLo
-        aHi = GdHi
-        bLo = IdLo - GdLo * Constants.DIO_LO_THRES
-        bHi = IdHi - GdHi * Constants.DIO_HI_THRES
-
-        return aLo, bLo, aHi, bHi
+        # if Ud < Constants.DIO_LO_THRES:
+        #     Gd = self._alpha * self._Is * math.exp(self._alpha * Constants.DIO_LO_THRES)
+        #     Id = self._Is * (math.exp(self._alpha * Constants.DIO_LO_THRES) - 1.0)
+        #     Ieq = Id - Gd * Constants.DIO_LO_THRES
+        # elif Ud <= Constants.DIO_HI_THRES:
+        #     Gd = self._alpha * self._Is * math.exp(self._alpha * Ud)
+        #     Id = self._Is * (math.exp(self._alpha * Ud) - 1.0)
+        #     Ieq = Id - Gd * Ud
+        # else:
+        #     Gd = self._alpha * self._Is * math.exp(self._alpha * Constants.DIO_HI_THRES)
+        #     Id = self._Is * (math.exp(self._alpha * Constants.DIO_HI_THRES) - 1.0)
+        #     Ieq = Id - Gd * Constants.DIO_HI_THRES
+        
+        return Gd, Ieq
 
     def print(self):
         print("Type: " + str(self._type) + str(self._id))

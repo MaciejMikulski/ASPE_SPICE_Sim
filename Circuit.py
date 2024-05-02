@@ -89,7 +89,7 @@ class Circuit:
 
     def op_analisys(self):
         self.construct_matrix() # Dummy matrix construction to get final length of voltage vect
-
+        exceededIterationNumber = True
         for i in range(0, Constants.OP_IRER_NUM):
             prevVoltageVect = self._resultVect
             prevCurrVect = self._rightSideVect
@@ -103,10 +103,12 @@ class Circuit:
             currCheck = self._check_current_break_condition(self._rightSideVect, prevCurrVect)
             if i == 0: currCheck = False # Fix. Without it the current check is always true in 1st iteration
             if (voltCheck or currCheck):
+                exceededIterationNumber = False
                 print("Ended in " + str(i) + " iteration.")
                 print("Voltage condition: " + str(voltCheck) + ". Current condition: " + str(currCheck) + ".")
                 break
-
+        if(exceededIterationNumber):
+            print("Exceeded iteration number.")
 
         return self._resultVect
 
@@ -212,7 +214,7 @@ class Circuit:
         kNodeId = self._nodes.index(dioPorts[1])
         Ud = self._resultVect[aNodeId] - self._resultVect[kNodeId]
 
-        Gd, Ieq, Id = component.get_params(Ud)
+        Gd, Ieq = component.get_params(Ud)
 
         self._conductanceMatrix[aNodeId, aNodeId] += Gd
         self._conductanceMatrix[aNodeId, kNodeId] -= Gd
@@ -233,7 +235,7 @@ class Circuit:
 
         Ic, Ib, Ie = component.get_params(Ube, Ubc)
 
-        self._rightSideVect[cNodeId, 0] -= Ic
-        self._rightSideVect[bNodeId, 0] -= Ib
-        self._rightSideVect[eNodeId, 0] -= Ie
+        self._rightSideVect[cNodeId, 0] += Ic
+        self._rightSideVect[bNodeId, 0] += Ib
+        self._rightSideVect[eNodeId, 0] += Ie
     

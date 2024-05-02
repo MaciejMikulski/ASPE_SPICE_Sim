@@ -42,9 +42,9 @@ class TransistorBJT(Component):
     def get_params(self, Ube, Ubc):
 
         # Calculate collector diode
-        GdC, Idc = self._calc_diode(Ubc, self._Isc, self._alphaC, self._aLoC, self._bLoC, self._aHiC, self._bHiC)
+        Idc = self._calc_diode(Ubc, self._Isc, self._alphaC, self._aLoC, self._bLoC, self._aHiC, self._bHiC)
         # Calculate emitter diode
-        GdE, Ide = self._calc_diode(Ube, self._Ise, self._alphaE, self._aLoE, self._bLoE, self._aHiE, self._bHiE)
+        Ide = self._calc_diode(Ube, self._Ise, self._alphaE, self._aLoE, self._bLoE, self._aHiE, self._bHiE)
 
         Ic = self._alphaF * Ide - Idc
         Ie = self._alphaF * Idc - Ide
@@ -69,16 +69,13 @@ class TransistorBJT(Component):
 
     def _calc_diode(self, Uf, Is, alpha, aLo, bLo, aHi, bHi):
         if Uf < Constants.DIO_LO_THRES:
-            Gd = aLo
             Id = aLo * Uf + bLo
         elif Uf <= Constants.DIO_HI_THRES:
-            Gd = alpha * Is * math.exp(alpha * Uf)
             Id = Is * (math.exp(alpha * Uf) - 1.0)
         else:
-            Gd = aHi
             Id = aHi * Uf + bHi
 
-        return Gd, Id
+        return Id
 
     def print(self):
         print("Type: " + str(self._type) + str(self._id))
