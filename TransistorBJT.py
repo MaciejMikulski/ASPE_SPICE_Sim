@@ -28,17 +28,19 @@ class TransistorBJT(Component):
         return super().get_ports()
 
     def get_params(self, Ube, Ubc):
-
         # Calculate collector diode
-        Idc, Gc = self._calc_diode(Ubc, self._Isc, self._alphaC)
+        Ieqc, Idc, Gbc = self._calc_diode(Ubc, self._Isc, self._alphaC)
         # Calculate emitter diode
-        Ide, Ge = self._calc_diode(Ube, self._Ise, self._alphaE)
+        Ieqe, Ide, Gbe = self._calc_diode(Ube, self._Ise, self._alphaE)
 
+        # Calculate transistor port's currents
+        Ide = Ieqe - Gbe * Ube
+        Idc = Ieqc - Gbc * Ubc
         Ic = self._alphaF * Ide - Idc
         Ie = self._alphaF * Idc - Ide
         Ib = -Ic - Ie
 
-        return Ic, Ib, Ie, Gc, Ge
+        return Ic, Ib, Ie, Ieqc, Ieqe, Gbc, Gbe, self._alphaF
 
     def _calc_diode(self, Uf, Is, alpha):
         if Uf < Constants.DIO_LO_THRES:
@@ -52,7 +54,7 @@ class TransistorBJT(Component):
         Id = Is * (math.exp(alpha * Udeff) - 1.0)
         Ieq = Id - Gd * Udeff
 
-        return Id, Gd
+        return Ieq, Id, Gd
 
     def print(self):
         print("Type: " + str(self._type) + str(self._id))

@@ -8,7 +8,7 @@ DIO_HI_THRES = 0.8
 
 
 # OP analysis constants
-OP_IRER_NUM = 100
+OP_IRER_NUM = 1000
 RELTOL = 0.001
-VNTOL = 10e-6 # 1 uV
-ABSTOL = 10e-12 # 1 pA
+VNTOL = 10e-6  # 1 uV
+ABSTOL = 10e-12  # 1 pA

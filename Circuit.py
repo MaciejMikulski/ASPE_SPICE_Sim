@@ -242,17 +242,19 @@ class Circuit:
         Ube = self._resultVect[bNodeId] - self._resultVect[eNodeId]
         Ubc = self._resultVect[bNodeId] - self._resultVect[cNodeId]
 
-        Ic, Ib, Ie, Gc, Ge = component.get_params(Ube, Ubc)
+        Ic, Ib, Ie, Ieqc, Ieqe, Gbc, Gbe, alphaF = component.get_params(Ube, Ubc)
 
-        self._conductanceMatrix[cNodeId, cNodeId] += Gc
-        self._conductanceMatrix[cNodeId, bNodeId] -= Gc
-        self._conductanceMatrix[bNodeId, cNodeId] -= Gc
-        self._conductanceMatrix[bNodeId, bNodeId] += (Gc + Ge)
-        self._conductanceMatrix[eNodeId, eNodeId] += Ge
-        self._conductanceMatrix[eNodeId, bNodeId] -= Ge
-        self._conductanceMatrix[bNodeId, eNodeId] -= Ge
+        self._conductanceMatrix[cNodeId, cNodeId] += Gbc
+        self._conductanceMatrix[cNodeId, bNodeId] += alphaF * Gbe - Gbc
+        self._conductanceMatrix[cNodeId, eNodeId] -= alphaF * Gbe
+        self._conductanceMatrix[bNodeId, cNodeId] += (alphaF - 1.0) * Gbc
+        self._conductanceMatrix[bNodeId, bNodeId] += (1.0 - alphaF) * (Gbc + Gbe)
+        self._conductanceMatrix[bNodeId, eNodeId] += (alphaF - 1.0) * Gbe
+        self._conductanceMatrix[eNodeId, cNodeId] -= alphaF * Gbc
+        self._conductanceMatrix[eNodeId, bNodeId] += alphaF * Gbc - Gbe
+        self._conductanceMatrix[eNodeId, eNodeId] += Gbe
 
-        self._rightSideVect[cNodeId, 0] += Ic
-        self._rightSideVect[bNodeId, 0] += Ib
-        self._rightSideVect[eNodeId, 0] += Ie
+        self._rightSideVect[cNodeId, 0] += Ieqc - alphaF * Ieqe
+        self._rightSideVect[bNodeId, 0] += (1.0 - alphaF) * (Ieqc + Ieqe)
+        self._rightSideVect[eNodeId, 0] += Ieqe - alphaF * Ieqc
     
