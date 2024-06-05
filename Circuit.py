@@ -58,6 +58,8 @@ class Circuit:
         self._rightSideVect = np.zeros((node_num, 1))
         if self._firsIteration:
             self._resultVect = np.zeros((node_num, 1))
+            #self._resultVect[1] = 0.5 # base
+            #self._resultVect[2] = 0.1 # collector
             self._firsIteration = False
 
         for component in self._elements:
@@ -95,14 +97,21 @@ class Circuit:
             prevCurrVect = self._rightSideVect
 
             self.construct_matrix()
+            #print("Iteration " + str(i+1))
+            #print("Conducntance matrix")
+            #print(self._conductanceMatrix)
+            #print("Right side vector")
+            #print(self._rightSideVect)
             self._resultVect = np.linalg.solve(self._conductanceMatrix, self._rightSideVect)
             self._resultVect = self._append_gnd_node(self._resultVect)
+            #print("Result vecotr")
+            #print(self._resultVect)
 
             # Check calculation end conditions
             voltCheck = self._check_voltage_break_condition(self._resultVect, prevVoltageVect)
             currCheck = self._check_current_break_condition(self._rightSideVect, prevCurrVect)
             if i == 0: currCheck = False # Fix. Without it the current check is always true in 1st iteration
-            if (voltCheck or currCheck):
+            if (voltCheck and currCheck):
                 exceededIterationNumber = False
                 print("Ended in " + str(i) + " iteration.")
                 print("Voltage condition: " + str(voltCheck) + ". Current condition: " + str(currCheck) + ".")
@@ -233,7 +242,15 @@ class Circuit:
         Ube = self._resultVect[bNodeId] - self._resultVect[eNodeId]
         Ubc = self._resultVect[bNodeId] - self._resultVect[cNodeId]
 
-        Ic, Ib, Ie = component.get_params(Ube, Ubc)
+        Ic, Ib, Ie, Gc, Ge = component.get_params(Ube, Ubc)
+
+        self._conductanceMatrix[cNodeId, cNodeId] += Gc
+        self._conductanceMatrix[cNodeId, bNodeId] -= Gc
+        self._conductanceMatrix[bNodeId, cNodeId] -= Gc
+        self._conductanceMatrix[bNodeId, bNodeId] += (Gc + Ge)
+        self._conductanceMatrix[eNodeId, eNodeId] += Ge
+        self._conductanceMatrix[eNodeId, bNodeId] -= Ge
+        self._conductanceMatrix[bNodeId, eNodeId] -= Ge
 
         self._rightSideVect[cNodeId, 0] += Ic
         self._rightSideVect[bNodeId, 0] += Ib

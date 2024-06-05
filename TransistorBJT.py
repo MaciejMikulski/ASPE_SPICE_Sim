@@ -24,58 +24,35 @@ class TransistorBJT(Component):
 
         self._alphaF = beta / (1 + beta)
 
-        # Calculate linearisation parameters for emitter and collector diodes
-        tmpaLo, tmpbLo, tmpaHi, tmpbHi = self._calculate_linear_coeffs(self._alphaC, self._Isc)
-        self._aLoC = tmpaLo
-        self._bLoC = tmpbLo
-        self._aHiC = tmpaHi
-        self._bHiC = tmpbHi
-        tmpaLo, tmpbLo, tmpaHi, tmpbHi = self._calculate_linear_coeffs(self._alphaE, self._Ise)
-        self._aLoE = tmpaLo
-        self._bLoE = tmpbLo
-        self._aHiE = tmpaHi
-        self._bHiE = tmpbHi
-
     def get_ports(self):
         return super().get_ports()
 
     def get_params(self, Ube, Ubc):
 
         # Calculate collector diode
-        Idc = self._calc_diode(Ubc, self._Isc, self._alphaC, self._aLoC, self._bLoC, self._aHiC, self._bHiC)
+        Idc, Gc = self._calc_diode(Ubc, self._Isc, self._alphaC)
         # Calculate emitter diode
-        Ide = self._calc_diode(Ube, self._Ise, self._alphaE, self._aLoE, self._bLoE, self._aHiE, self._bHiE)
+        Ide, Ge = self._calc_diode(Ube, self._Ise, self._alphaE)
 
         Ic = self._alphaF * Ide - Idc
         Ie = self._alphaF * Idc - Ide
         Ib = -Ic - Ie
 
-        return Ic, Ib, Ie
+        return Ic, Ib, Ie, Gc, Ge
 
-    def _calculate_linear_coeffs(self, alpha, Is):
-        """Calculate coeffitients of linear functions for approximating Id"""
-        GdLo = alpha * Is * math.exp(alpha * Constants.DIO_LO_THRES)
-        IdLo = Is * (math.exp(alpha * Constants.DIO_LO_THRES) - 1.0)
-
-        GdHi = alpha * Is * math.exp(alpha * Constants.DIO_HI_THRES)
-        IdHi = Is * (math.exp(alpha * Constants.DIO_HI_THRES) - 1.0)
-
-        aLo = GdLo
-        aHi = GdHi
-        bLo = IdLo - GdLo * Constants.DIO_LO_THRES
-        bHi = IdHi - GdHi * Constants.DIO_HI_THRES
-
-        return aLo, bLo, aHi, bHi
-
-    def _calc_diode(self, Uf, Is, alpha, aLo, bLo, aHi, bHi):
+    def _calc_diode(self, Uf, Is, alpha):
         if Uf < Constants.DIO_LO_THRES:
-            Id = aLo * Uf + bLo
+            Udeff = Constants.DIO_LO_THRES
         elif Uf <= Constants.DIO_HI_THRES:
-            Id = Is * (math.exp(alpha * Uf) - 1.0)
+            Udeff = Uf
         else:
-            Id = aHi * Uf + bHi
+            Udeff = Constants.DIO_HI_THRES
 
-        return Id
+        Gd = alpha * Is * math.exp(alpha * Udeff)
+        Id = Is * (math.exp(alpha * Udeff) - 1.0)
+        Ieq = Id - Gd * Udeff
+
+        return Id, Gd
 
     def print(self):
         print("Type: " + str(self._type) + str(self._id))

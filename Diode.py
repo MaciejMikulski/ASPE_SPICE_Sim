@@ -28,19 +28,6 @@ class Diode(Component):
         Gd = self._alpha * self._Is * math.exp(self._alpha * Udeff)
         Id = self._Is * (math.exp(self._alpha * Udeff) - 1.0)
         Ieq = Id - Gd * Udeff
-
-        # if Ud < Constants.DIO_LO_THRES:
-        #     Gd = self._alpha * self._Is * math.exp(self._alpha * Constants.DIO_LO_THRES)
-        #     Id = self._Is * (math.exp(self._alpha * Constants.DIO_LO_THRES) - 1.0)
-        #     Ieq = Id - Gd * Constants.DIO_LO_THRES
-        # elif Ud <= Constants.DIO_HI_THRES:
-        #     Gd = self._alpha * self._Is * math.exp(self._alpha * Ud)
-        #     Id = self._Is * (math.exp(self._alpha * Ud) - 1.0)
-        #     Ieq = Id - Gd * Ud
-        # else:
-        #     Gd = self._alpha * self._Is * math.exp(self._alpha * Constants.DIO_HI_THRES)
-        #     Id = self._Is * (math.exp(self._alpha * Constants.DIO_HI_THRES) - 1.0)
-        #     Ieq = Id - Gd * Constants.DIO_HI_THRES
         
         return Gd, Ieq
 
