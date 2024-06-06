@@ -253,6 +253,6 @@ class Circuit:
         self._conductanceMatrix[eNodeId, eNodeId] += Gbe
 
         self._rightSideVect[cNodeId, 0] += Ieqc - alphaF * Ieqe
-        self._rightSideVect[bNodeId, 0] += (1.0 - alphaF) * (Ieqc + Ieqe)
+        self._rightSideVect[bNodeId, 0] -= (1.0 - alphaF) * (Ieqc + Ieqe)
         self._rightSideVect[eNodeId, 0] += Ieqe - alphaF * Ieqc
     
