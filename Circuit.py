@@ -58,8 +58,6 @@ class Circuit:
         self._rightSideVect = np.zeros((node_num, 1))
         if self._firsIteration:
             self._resultVect = np.zeros((node_num, 1))
-            #self._resultVect[1] = 0.5 # base
-            #self._resultVect[2] = 0.1 # collector
             self._firsIteration = False
 
         for component in self._elements:

@@ -14,7 +14,7 @@ circ = Circuit()
 #R3 = Resistor(3, [1, 3], 10000.0)
 #R4 = Resistor(4, [4, 5], 330.0)
 #R5 = Resistor(5, [5, 6], 4700.0)
-#Q1 = TransistorBJT(1, [3, 2, 4], 10e-12, 10e-12, 1.0, 1.0, 100.0)
+#Q1 = TransistorBJT(1, [3, 2, 4], 1e-12, 1e-12, 1.0, 1.0, 100.0)
 #
 #circ.add_element(E1)
 #circ.add_element(R1)
@@ -27,9 +27,9 @@ circ = Circuit()
 #circ.set_gnd_node(6)
 
 # Układ testowy tranzystora BJT
-IDD1 = CurrentSource(1, [3,1], 0.001)
+#IDD1 = CurrentSource(1, [3,1], 0.001)
 E2 = VoltageSource(2, [1,3], 0.7)
-Q1 = TransistorBJT(1, [2,1,3], 10e-12, 10e-12, 1.0, 1.0, 100.0)
+Q1 = TransistorBJT(1, [2,1,3], 1e-12, 1e-12, 1.0, 1.0, 100.0)
 E1 = VoltageSource(1, [2,3], 5.0)
 
 #circ.add_element(IDD1)
