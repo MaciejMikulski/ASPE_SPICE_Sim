@@ -5,13 +5,16 @@ import Constants
 class Circuit:
 
     def __init__(self):
-        self._elements = []
-        self._nodes = []
+        self._elements = []  # List of elements present in the circuit
+        self._nodes = []     # List of nodes present in the circuit
         self._resultVect = np.empty(0)
         self._rightSideVect = np.empty(0)
         self._conductanceMatrix = np.empty(0)
         self._gndNode = 0
         self._firsIteration = True
+
+        self._OPanalysisResult = np.empty(0)
+        self._OPanalysisStatus = OPAnalysisStatus()
 
     def add_element(self, element: Component):
         """
@@ -88,40 +91,62 @@ class Circuit:
         self._rightSideVect = np.delete(self._rightSideVect, gndNodeIndex, 0)
 
     def op_analisys(self):
-        self.construct_matrix() # Dummy matrix construction to get final length of voltage vect
+        returnStatus = False
+        iterationNumber = 0
+        # Dummy matrix construction to get final length of voltage vector - some elements rows.
+        self.construct_matrix() 
         exceededIterationNumber = True
         for i in range(0, Constants.OP_IRER_NUM):
             prevVoltageVect = self._resultVect
             prevCurrVect = self._rightSideVect
 
+            # Create matrix for this step and perform calculations
             self.construct_matrix()
-            #print("Iteration " + str(i+1))
-            #print("Conducntance matrix")
-            #print(self._conductanceMatrix)
-            #print("Right side vector")
-            #print(self._rightSideVect)
             self._resultVect = np.linalg.solve(self._conductanceMatrix, self._rightSideVect)
             self._resultVect = self._append_gnd_node(self._resultVect)
-            #print("Result vecotr")
-            #print(self._resultVect)
 
             # Check calculation end conditions
             voltCheck = self._check_voltage_break_condition(self._resultVect, prevVoltageVect)
             currCheck = self._check_current_break_condition(self._rightSideVect, prevCurrVect)
-            if i == 0: currCheck = False # Fix. Without it the current check is always true in 1st iteration
             if (voltCheck and currCheck):
                 exceededIterationNumber = False
-                print("Ended in " + str(i) + " iteration.")
-                print("Voltage condition: " + str(voltCheck) + ". Current condition: " + str(currCheck) + ".")
+                iterationNumber = i
+                returnStatus = True # Simulation completed succesfully
                 break
         if(exceededIterationNumber):
+            iterationNumber = Constants.OP_ITER_NUM
             print("Exceeded iteration number.")
 
-        return self._resultVect
+        self._OPanalysisResult = self._resultVect
+        self._OPanalysisStatus.set_status(returnStatus, voltCheck, currCheck, iterationNumber)
+        return returnStatus
 
     def tran_analisys(self):
         pass
 
+    def display_OP_analysys_results(self):
+        # Generate labels for all elements of result vector
+        labels = []
+        # Add schematic node names ...
+        for node in self._nodes:
+            labels.append("V" + str(node))
+        # ... and name of currents going through voltage sources
+        for element in self._elements:
+            type = element.get_type()
+            if type == ComponentType.VDD.name or type == ComponentType.VAC.name:
+                id = element.get_id()
+                labels.append("IE" + str(id)) 
+
+        # Sort labels and reorder respective values
+        values = self._resultVect.T
+        values = values.tolist()[0]
+        labels, values = (list(t) for t in zip(*sorted(zip(labels, values))))
+
+        # Print OP analisys status report
+        self._OPanalysisStatus.print()
+        print("OP analisys results:")
+        for label, value in zip(labels, values):
+            print(label, ": ", value)
 
     # Private functions
     def _check_voltage_break_condition(self, currVoltVect, prevVoltVect):
@@ -214,7 +239,6 @@ class Circuit:
         tmpEl[0, 0] = 0.0
         self._resultVect = np.append(self._resultVect, tmpEl, axis=0)
 
-
     def _matrix_add_diode(self, component):
         dioPorts = component.get_ports()
         aNodeId = self._nodes.index(dioPorts[0])
@@ -256,3 +280,48 @@ class Circuit:
         self._rightSideVect[bNodeId, 0] -= (1.0 - alphaF) * (Ieqc + Ieqe)
         self._rightSideVect[eNodeId, 0] += Ieqe - alphaF * Ieqc
     
+class OPAnalysisStatus():
+
+    def __init__(self, exitStatus=False, voltCond=False, currCond=False, iter=0):
+        """
+        Class containing data about the OP analysis result
+
+        Parameters
+        ----------
+        exitStatus : bool
+            Exit status of the analysis. False - failed, True - succes
+        voltCond : bool
+            Status of the voltage condition. False - not met, True - met
+        currCond : bool
+            Status of the current condition. False - not met, True - met
+        iter : int
+            Number of iterations performed to get the result.
+        """
+        self._exitStatus = exitStatus
+        self._voltageCondition = voltCond
+        self._currentCondition = currCond
+        self._iterationNumber = iter
+
+    def get_status(self):
+        return self._exitStatus, self._voltageCondition, self._currentCondition, self._iterationNumber
+    
+    def set_status(self, exitStatus=False, voltCond=False, currCond=False, iter=0):
+        self._exitStatus = exitStatus
+        self._voltageCondition = voltCond
+        self._currentCondition = currCond
+        self._iterationNumber = iter
+
+    def print(self):
+        if self._exitStatus:
+            print("OP analisys was completed succesfully in ", self._iterationNumber, " iterations.")
+            if self._voltageCondition:
+                print("Voltage condition was met.")
+            else:
+                print("Voltage condition was not met.")
+            if self._currentCondition:
+                print("Current condition was met.")
+            else:
+                print("Current condition was not met.")
+        else:
+            print("OP analisys exceeded iteration number")
+        

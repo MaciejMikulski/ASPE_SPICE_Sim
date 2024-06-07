@@ -16,6 +16,9 @@ class VoltageSource(Component):
     def get_ports(self):
         return super().get_ports()
 
+    def get_id(self):
+        return self._id
+
     def print(self):
         print("Type: " + str(self._type) + str(self._id))
         print("Ports: " + str(self._ports))
