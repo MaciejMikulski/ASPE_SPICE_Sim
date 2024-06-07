@@ -11,3 +11,6 @@ OP_IRER_NUM = 1000
 RELTOL = 0.001
 VNTOL = 1e-6  # 1 uV
 ABSTOL = 1e-12  # 1 pA
+
+# AC analysis constants
+TIMESTEP = 0.001 # seconds

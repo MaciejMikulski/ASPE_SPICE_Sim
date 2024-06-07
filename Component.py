@@ -7,6 +7,8 @@ class ComponentType(Enum):
     IDD = 3
     DIO = 4
     BJT = 5
+    C = 6
+    VAC = 7
 
 
 class Component:
