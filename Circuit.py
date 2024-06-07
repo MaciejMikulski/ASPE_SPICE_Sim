@@ -240,7 +240,7 @@ class Circuit:
         Ube = self._resultVect[bNodeId] - self._resultVect[eNodeId]
         Ubc = self._resultVect[bNodeId] - self._resultVect[cNodeId]
 
-        Ic, Ib, Ie, Ieqc, Ieqe, Gbc, Gbe, alphaF = component.get_params(Ube, Ubc)
+        Ieqc, Ieqe, Gbc, Gbe, alphaF = component.get_params(Ube, Ubc)
 
         self._conductanceMatrix[cNodeId, cNodeId] += Gbc
         self._conductanceMatrix[cNodeId, bNodeId] += alphaF * Gbe - Gbc
