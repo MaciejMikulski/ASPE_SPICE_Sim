@@ -5,7 +5,7 @@ class Capacitor(Component):
 
     def __init__(self, id, ports, capacitance):
         self._id = id
-        self._type = ComponentType.C.name
+        self._type = ComponentType.C
         self._ports = []
         for x in ports:
             self.add_port(x)

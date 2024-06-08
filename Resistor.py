@@ -4,7 +4,7 @@ class Resistor(Component):
 
     def __init__(self, id, ports, resistance):
         self._id = id
-        self._type = ComponentType.R.name
+        self._type = ComponentType.R
         self._ports = []
         for x in ports:
             self.add_port(x)

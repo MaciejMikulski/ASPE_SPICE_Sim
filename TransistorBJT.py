@@ -7,7 +7,7 @@ class TransistorBJT(Component):
 
     def __init__(self, id, ports, satCurrC, satCurrE, emissionCoeffC, emissionCoeffE, beta, temp=300.0):
         self._id = id
-        self._type = ComponentType.BJT.name
+        self._type = ComponentType.BJT
         self._ports = []
         for x in ports:
             self.add_port(x)

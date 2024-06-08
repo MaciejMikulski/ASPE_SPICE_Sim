@@ -2,6 +2,10 @@ import numpy as np
 from Component import *
 import Constants
 
+class AnalisysType(Enum):
+    OP = 1
+    TRAN = 2
+
 class Circuit:
 
     def __init__(self):
@@ -15,6 +19,9 @@ class Circuit:
 
         self._OPanalysisResult = np.empty(0)
         self._OPanalysisStatus = OPAnalysisStatus()
+
+        # Time of the TRAN simulation in seconds
+        self._tranSimulationTime = 0.0
 
     def add_element(self, element: Component):
         """
@@ -47,38 +54,48 @@ class Circuit:
         else:
             raise Exception("Specified nonexistent node as GND.")
 
-    def construct_matrix(self):
+    def construct_matrix(self, analisysType: AnalisysType = AnalisysType.OP):
         """
         This function constructs conductance matrix, right side vector and result vector based on component list.
         
-        Parameters:
-            None
+        Parameters
+        ----------
+        analisysType : AnalisysType
+            Chooses which type of circuit analisys is being performed. Default is OP.
         Returns:
-            None
+        ----------
+                None
         """
         node_num = len(self._nodes)
         self._conductanceMatrix = np.zeros((node_num, node_num))
         self._rightSideVect = np.zeros((node_num, 1))
+        # Initialise result vector with zeros in first iteration. In all others it holds result
+        # of previous iterations.
         if self._firsIteration:
             self._resultVect = np.zeros((node_num, 1))
             self._firsIteration = False
 
         for component in self._elements:
             comp_type = component.get_type()
-            if comp_type == ComponentType.R.name:
+            if comp_type == ComponentType.R:
                 self._matrix_add_resistor(component)
                 
-            elif comp_type == ComponentType.IDD.name:
+            elif comp_type == ComponentType.IDD:
                 self._matrix_add_curr_source(component)
 
-            elif comp_type == ComponentType.VDD.name:
-                self._matrix_add_volt_source(component)
+            elif comp_type == ComponentType.VDD or comp_type == Component.VAC:
+                self._matrix_add_volt_source(component, analisysType, comp_type)
 
-            elif comp_type == ComponentType.DIO.name:
+            elif comp_type == ComponentType.DIO:
                 self._matrix_add_diode(component)
 
-            elif comp_type == ComponentType.BJT.name:
+            elif comp_type == ComponentType.BJT:
                 self._matrix_add_BJT(component)
+
+            elif comp_type == Component.C:
+                # Capacitor in OP analisys is a break in the curcuit, don't add it.
+                if analisysType != AnalisysType.OP:
+                    self._matrix_add_capacitor(component)
 
             else:
                 pass
@@ -124,7 +141,7 @@ class Circuit:
     def tran_analisys(self):
         pass
 
-    def display_OP_analysys_results(self):
+    def display_op_analysys_results(self):
         # Generate labels for all elements of result vector
         labels = []
         # Add schematic node names ...
@@ -148,7 +165,8 @@ class Circuit:
         for label, value in zip(labels, values):
             print(label, ": ", value)
 
-    # Private functions
+    ############################ PRIVATE FUNCTIONS ############################
+
     def _check_voltage_break_condition(self, currVoltVect, prevVoltVect):
         voltDiff = np.absolute(np.subtract(currVoltVect, prevVoltVect))
         voltAbs = np.absolute(currVoltVect)
@@ -186,6 +204,7 @@ class Circuit:
 
         return gndVoltVect
     
+    ################################ HELPER FUNCTIONS ################################
     # Below are helper functions. They contain all the logic needed to add respective component 
     # to the matrix and vectors used in calculations. They were created to shorten the body 
     # of the construct_matrix() method and make it clearer.
@@ -208,11 +227,16 @@ class Circuit:
         self._rightSideVect[pNodeId, 0] -= current
         self._rightSideVect[nNodeId, 0] += current
 
-    def _matrix_add_volt_source(self, component):
+    def _matrix_add_volt_source(self, component, analisysType, sourceType):
         vddPorts = component.get_ports()
-        voltage = component.get_voltage()
         pNodeId = self._nodes.index(vddPorts[0])
         nNodeId = self._nodes.index(vddPorts[1])
+
+        # Get proper voltage value depending on voltage cource type and analisys type
+        if sourceType == Component.VDD or analisysType == AnalisysType.OP:
+            voltage = component.get_voltage()
+        else:
+            voltage = component.get_voltage_ac(self._tranSimulationTime)
 
         # get the size of the conductance matrix
         cond_matrix_shape = self._conductanceMatrix.shape
@@ -279,7 +303,25 @@ class Circuit:
         self._rightSideVect[cNodeId, 0] += Ieqc - alphaF * Ieqe
         self._rightSideVect[bNodeId, 0] -= (1.0 - alphaF) * (Ieqc + Ieqe)
         self._rightSideVect[eNodeId, 0] += Ieqe - alphaF * Ieqc
-    
+
+    def _matrix_add_capacitor(self, component):
+        capPorts = component.get_ports()
+        pNodeId = self._nodes.index(capPorts[0])
+        nNodeId = self._nodes.index(capPorts[1])
+        Ud = self._resultVect[pNodeId] - self._resultVect[nNodeId]
+
+        Gc, Ieq = component.get_params(Ud)
+
+        self._conductanceMatrix[pNodeId, pNodeId] += Gc
+        self._conductanceMatrix[pNodeId, nNodeId] -= Gc
+        self._conductanceMatrix[nNodeId, pNodeId] -= Gc
+        self._conductanceMatrix[nNodeId, nNodeId] += Gc
+
+        self._rightSideVect[pNodeId, 0] -= Ieq
+        self._rightSideVect[nNodeId, 0] += Ieq
+
+################################ HELPER CLASSES ################################
+
 class OPAnalysisStatus():
 
     def __init__(self, exitStatus=False, voltCond=False, currCond=False, iter=0):

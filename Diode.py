@@ -6,7 +6,7 @@ class Diode(Component):
 
     def __init__(self, id, ports, satCurr, emissionCoeff, temp=300.0):
         self._id = id
-        self._type = ComponentType.DIO.name
+        self._type = ComponentType.DIO
         self._ports = []
         for x in ports:
             self.add_port(x)

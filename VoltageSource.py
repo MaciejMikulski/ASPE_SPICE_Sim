@@ -4,7 +4,7 @@ class VoltageSource(Component):
 
     def __init__(self, id, ports, voltage):
         self._id = id
-        self._type = ComponentType.VDD.name
+        self._type = ComponentType.VDD
         self._ports = []
         for x in ports:
             self.add_port(x)

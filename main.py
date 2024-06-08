@@ -27,4 +27,4 @@ circ.add_element(Q1)
 circ.set_gnd_node(6)
 
 circ.op_analisys()
-circ.display_OP_analysys_results()
+circ.display_op_analysys_results()

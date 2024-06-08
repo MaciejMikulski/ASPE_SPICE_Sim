@@ -6,7 +6,7 @@ class VoltageSourceAC(Component):
 
     def __init__(self, id, ports, dcOffset, amplitude, freq):
         self._id = id
-        self._type = ComponentType.VAC.name
+        self._type = ComponentType.VAC
         self._ports = []
         for x in ports:
             self.add_port(x)
