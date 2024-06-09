@@ -2,7 +2,7 @@ import numpy as np
 from Component import *
 import Constants
 
-class AnalisysType(Enum):
+class AnalysisType(Enum):
     OP = 1
     TRAN = 2
 
@@ -17,11 +17,16 @@ class Circuit:
         self._gndNode = 0
         self._firsIteration = True
 
-        self._OPanalysisResult = np.empty(0)
-        self._OPanalysisStatus = OPAnalysisStatus()
+        self._opAnalysisResult = np.empty(0)
+        self._opAnalysisStatus = OPAnalysisStatus()
 
-        # Time of the TRAN simulation in seconds
         self._tranSimulationTime = 0.0
+        self._tranStepLength = 0.0
+        self._tranInitialOPResult = np.empty(0)
+        self._tranInitialOPCurrent = np.empty(0)
+        self._tranAnalysisResult = np.empty(0)
+        self._tranAnalysisTimescale = np.empty(0)
+        self._tranAnalysisStatus = TRANAnalysisStatus()
 
     def add_element(self, element: Component):
         """
@@ -54,7 +59,148 @@ class Circuit:
         else:
             raise Exception("Specified nonexistent node as GND.")
 
-    def construct_matrix(self, analisysType: AnalisysType = AnalisysType.OP):
+    def op_analysis(self):
+        returnStatus = False
+        iterationNumber = 0
+        # Dummy matrix construction to get final length of voltage vector - some elements rows.
+        self._firsIteration = True
+        self._construct_matrix() 
+        exceededIterationNumber = True
+        for i in range(0, Constants.OP_IRER_NUM):
+            prevVoltageVect = self._resultVect
+            prevCurrVect = self._rightSideVect
+
+            # Create matrix for this step and perform calculations
+            self._construct_matrix()
+            self._resultVect = np.linalg.solve(self._conductanceMatrix, self._rightSideVect)
+            self._resultVect = self._append_gnd_node(self._resultVect)
+
+            # Check calculation end conditions
+            voltCheck = self._check_voltage_break_condition(self._resultVect, prevVoltageVect)
+            currCheck = self._check_current_break_condition(self._rightSideVect, prevCurrVect)
+            if (voltCheck and currCheck):
+                exceededIterationNumber = False
+                iterationNumber = i
+                returnStatus = True # Simulation completed succesfully
+                break
+        if(exceededIterationNumber):
+            iterationNumber = Constants.OP_ITER_NUM
+            print("Exceeded iteration number.")
+        # Save calculation result and status
+        self._opAnalysisResult = self._resultVect
+        self._opAnalysisStatus.set_status(returnStatus, voltCheck, currCheck, iterationNumber)
+
+        return returnStatus
+
+    def tran_analysis(self, startT, stopT, step):
+        tranReturnStatus = False
+        # First perform OP analisys to get initial operating point of the circuit
+        opAnlReturnStat = self.op_analysis()
+        # If OP analysis failed, exit function with error
+        if opAnlReturnStat == False:
+           return tranReturnStatus
+        # Store results of the OP analysis
+        tranInitialOPResult = self._opAnalysisResult
+        tranInitialOPCurrent = self._rightSideVect
+
+        # Perform tran analisys
+        # Get timescale and number of steps from given parameters
+        stepsNumber = (int)((stopT - startT) / step)
+        self._tranAnalysisTimescale = np.linspace(startT, stopT, stepsNumber)
+        self._tranStepLength = step
+
+        # List for results of circuit analisys in all time steps
+        # After all operations it will be converted to 2D numpy array
+        tranResults = []
+
+        # Calculate every step from the timescale
+        for i in range(stepsNumber):
+            print("Timestep ", i)
+            # Dummy matrix construction to get final length of voltage vector - some elements rows.
+            self._firsIteration = True
+            self._construct_matrix(AnalysisType.TRAN) 
+            # Status variables of varius checks in the calculations
+            exceededIterationNumber = True
+            voltCheck = False
+            currCheck = False
+            for j in range(0, Constants.OP_IRER_NUM):
+                # In first iteration use results from previous analysis
+                if j == 0:
+                    prevVoltageVect = tranInitialOPResult
+                    self._resultVect = tranInitialOPResult
+                    prevCurrVect = tranInitialOPCurrent
+                else:
+                    prevVoltageVect = self._resultVect
+                    prevCurrVect = self._rightSideVect
+
+                # Create matrix for this step and perform calculations
+                self._construct_matrix(AnalysisType.TRAN)
+                self._resultVect = np.linalg.solve(self._conductanceMatrix, self._rightSideVect)
+                self._resultVect = self._append_gnd_node(self._resultVect)
+
+                # Check calculation end conditions
+                voltCheck = self._check_voltage_break_condition(self._resultVect, prevVoltageVect)
+                currCheck = self._check_current_break_condition(self._rightSideVect, prevCurrVect)
+                if (voltCheck and currCheck):
+                    exceededIterationNumber = False
+                    iterationNumber = j
+                    break
+            if(exceededIterationNumber):
+                iterationNumber = Constants.OP_IRER_NUM
+                print("TRAN exceeded iteration number at time: ", self._tranSimulationTime)
+                self._tranAnalysisStatus.set_fail_time(self._tranSimulationTime)
+                self._tranAnalysisStatus.set_return_status(tranReturnStatus)
+                return tranReturnStatus
+
+            # Save status of this timestep
+            self._tranAnalysisStatus.append_status(voltCheck, currCheck, iterationNumber)
+            # Add result of this time step to result list
+            tranResults.append(self._resultVect)
+
+            # Store those vectors, so they can serve as starting point in next time step
+            tranInitialOPResult = self._resultVect
+            tranInitialOPCurrent = self._rightSideVect
+
+            self._tranSimulationTime += self._tranStepLength
+
+        # Save all output data of the TRAN simulation
+        tranResults = np.array(tranResults)
+        print(tranResults.shape)
+        np.savetxt("tranWyniki.txt", tranResults[:,:,0])
+        self._tranAnalysisResult = tranResults
+
+        # Save status of the simulation and exit
+        tranReturnStatus = True
+        self._tranAnalysisStatus.set_return_status(tranReturnStatus)
+        return tranReturnStatus
+
+    def display_op_analysis_results(self):
+        # Generate labels for all elements of result vector
+        labels = []
+        # Add schematic node names ...
+        for node in self._nodes:
+            labels.append("V" + str(node))
+        # ... and name of currents going through voltage sources
+        for element in self._elements:
+            type = element.get_type()
+            if type == ComponentType.VDD or type == ComponentType.VAC:
+                id = element.get_id()
+                labels.append("IE" + str(id)) 
+
+        # Sort labels and reorder respective values
+        values = self._resultVect.T
+        values = values.tolist()[0]
+        labels, values = (list(t) for t in zip(*sorted(zip(labels, values))))
+
+        # Print OP analisys status report
+        self._opAnalysisStatus.print()
+        print("OP analysis results:")
+        for label, value in zip(labels, values):
+            print(label, ": ", value)
+
+    ############################ PRIVATE HELPER FUNCTIONS ############################
+
+    def _construct_matrix(self, analysisType: AnalysisType = AnalysisType.OP):
         """
         This function constructs conductance matrix, right side vector and result vector based on component list.
         
@@ -83,8 +229,8 @@ class Circuit:
             elif comp_type == ComponentType.IDD:
                 self._matrix_add_curr_source(component)
 
-            elif comp_type == ComponentType.VDD or comp_type == Component.VAC:
-                self._matrix_add_volt_source(component, analisysType, comp_type)
+            elif comp_type == ComponentType.VDD or comp_type == ComponentType.VAC:
+                self._matrix_add_volt_source(component, analysisType, comp_type)
 
             elif comp_type == ComponentType.DIO:
                 self._matrix_add_diode(component)
@@ -92,10 +238,10 @@ class Circuit:
             elif comp_type == ComponentType.BJT:
                 self._matrix_add_BJT(component)
 
-            elif comp_type == Component.C:
+            elif comp_type == ComponentType.C:
                 # Capacitor in OP analisys is a break in the curcuit, don't add it.
-                if analisysType != AnalisysType.OP:
-                    self._matrix_add_capacitor(component)
+                if analysisType != AnalysisType.OP:
+                    self._matrix_add_capacitor(component, self._tranStepLength)
 
             else:
                 pass
@@ -106,66 +252,6 @@ class Circuit:
         self._conductanceMatrix = np.delete(self._conductanceMatrix, gndNodeIndex, 1)
         # delete ground node from right side vector
         self._rightSideVect = np.delete(self._rightSideVect, gndNodeIndex, 0)
-
-    def op_analisys(self):
-        returnStatus = False
-        iterationNumber = 0
-        # Dummy matrix construction to get final length of voltage vector - some elements rows.
-        self.construct_matrix() 
-        exceededIterationNumber = True
-        for i in range(0, Constants.OP_IRER_NUM):
-            prevVoltageVect = self._resultVect
-            prevCurrVect = self._rightSideVect
-
-            # Create matrix for this step and perform calculations
-            self.construct_matrix()
-            self._resultVect = np.linalg.solve(self._conductanceMatrix, self._rightSideVect)
-            self._resultVect = self._append_gnd_node(self._resultVect)
-
-            # Check calculation end conditions
-            voltCheck = self._check_voltage_break_condition(self._resultVect, prevVoltageVect)
-            currCheck = self._check_current_break_condition(self._rightSideVect, prevCurrVect)
-            if (voltCheck and currCheck):
-                exceededIterationNumber = False
-                iterationNumber = i
-                returnStatus = True # Simulation completed succesfully
-                break
-        if(exceededIterationNumber):
-            iterationNumber = Constants.OP_ITER_NUM
-            print("Exceeded iteration number.")
-
-        self._OPanalysisResult = self._resultVect
-        self._OPanalysisStatus.set_status(returnStatus, voltCheck, currCheck, iterationNumber)
-        return returnStatus
-
-    def tran_analisys(self):
-        pass
-
-    def display_op_analysys_results(self):
-        # Generate labels for all elements of result vector
-        labels = []
-        # Add schematic node names ...
-        for node in self._nodes:
-            labels.append("V" + str(node))
-        # ... and name of currents going through voltage sources
-        for element in self._elements:
-            type = element.get_type()
-            if type == ComponentType.VDD.name or type == ComponentType.VAC.name:
-                id = element.get_id()
-                labels.append("IE" + str(id)) 
-
-        # Sort labels and reorder respective values
-        values = self._resultVect.T
-        values = values.tolist()[0]
-        labels, values = (list(t) for t in zip(*sorted(zip(labels, values))))
-
-        # Print OP analisys status report
-        self._OPanalysisStatus.print()
-        print("OP analisys results:")
-        for label, value in zip(labels, values):
-            print(label, ": ", value)
-
-    ############################ PRIVATE FUNCTIONS ############################
 
     def _check_voltage_break_condition(self, currVoltVect, prevVoltVect):
         voltDiff = np.absolute(np.subtract(currVoltVect, prevVoltVect))
@@ -204,7 +290,7 @@ class Circuit:
 
         return gndVoltVect
     
-    ################################ HELPER FUNCTIONS ################################
+    #################################  COMPONENT ADD  #################################
     # Below are helper functions. They contain all the logic needed to add respective component 
     # to the matrix and vectors used in calculations. They were created to shorten the body 
     # of the construct_matrix() method and make it clearer.
@@ -227,13 +313,13 @@ class Circuit:
         self._rightSideVect[pNodeId, 0] -= current
         self._rightSideVect[nNodeId, 0] += current
 
-    def _matrix_add_volt_source(self, component, analisysType, sourceType):
+    def _matrix_add_volt_source(self, component, analysisType, sourceType):
         vddPorts = component.get_ports()
         pNodeId = self._nodes.index(vddPorts[0])
         nNodeId = self._nodes.index(vddPorts[1])
 
         # Get proper voltage value depending on voltage cource type and analisys type
-        if sourceType == Component.VDD or analisysType == AnalisysType.OP:
+        if sourceType == ComponentType.VDD or analysisType == AnalysisType.OP:
             voltage = component.get_voltage()
         else:
             voltage = component.get_voltage_ac(self._tranSimulationTime)
@@ -304,13 +390,13 @@ class Circuit:
         self._rightSideVect[bNodeId, 0] -= (1.0 - alphaF) * (Ieqc + Ieqe)
         self._rightSideVect[eNodeId, 0] += Ieqe - alphaF * Ieqc
 
-    def _matrix_add_capacitor(self, component):
+    def _matrix_add_capacitor(self, component, stepLen):
         capPorts = component.get_ports()
         pNodeId = self._nodes.index(capPorts[0])
         nNodeId = self._nodes.index(capPorts[1])
         Ud = self._resultVect[pNodeId] - self._resultVect[nNodeId]
 
-        Gc, Ieq = component.get_params(Ud)
+        Gc, Ieq = component.get_params(Ud, stepLen)
 
         self._conductanceMatrix[pNodeId, pNodeId] += Gc
         self._conductanceMatrix[pNodeId, nNodeId] -= Gc
@@ -367,3 +453,38 @@ class OPAnalysisStatus():
         else:
             print("OP analisys exceeded iteration number")
         
+class TRANAnalysisStatus():
+    
+    def __init__(self):
+        self._returnStatus = False
+        self._failTime = 0.0
+        self._timeStepsNumber = 0
+        self._voltageCondition = []
+        self._currentCondition = []
+        self._iterationNumber = []
+
+    def get_status(self):
+        return self._returnStatus, self._failTime, self._timeSteps, self._voltageCondition, self._currentCondition, self._iterationNumber
+    
+    def append_status(self, voltCond=False, currCond=False, iter=0):
+        self._voltageCondition.append(voltCond)
+        self._currentCondition.append(currCond)
+        self._iterationNumber.append(iter)
+
+    def set_return_status(self, retStat):
+        self._returnStatus = retStat
+
+    def set_fail_time(self, time):
+        self._failTime = time
+
+    def set_time_steps_number(self, num):
+        self._timeStepsNumber = num
+
+    def print(self):
+        if self._returnStatus:
+            print("TRAN analysis was completed succesfully")
+            print("Average number of iterations: ", (int)(np.average(self._iterationNumber)))
+            print("Minimum number of iterations: ", np.min(self._iterationNumber))
+            print("Maximum number of iterations: ", np.max(self._iterationNumber))
+        else:
+            print("TRAN analisys failed")

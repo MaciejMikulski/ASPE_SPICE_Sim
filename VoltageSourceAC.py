@@ -14,6 +14,9 @@ class VoltageSourceAC(Component):
         self._amplitude = amplitude
         self._frequency = freq
 
+    def get_id(self):
+        return self._id
+
     def get_voltage(self):
         return self._dcOffset
 

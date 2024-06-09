@@ -29,7 +29,7 @@ class Capacitor(Component):
     def get_ports(self):
         return super().get_ports()
 
-    def get_params(self, ud, id, stepLen, method=IntegratingRule.INERP):
+    def get_params(self, ud, stepLen, id=0.0, method=IntegratingRule.INERP):
         """
         This method calculates companion model parametes for capacitor using given
         integrating method.
@@ -38,10 +38,10 @@ class Capacitor(Component):
         ----------
         ud : float
             Voltage drop between positive and negative terminal of the capacitor in previous step.
-        id : float
-            Current flowing through capacitor in previous step.
         stepLen : float
             Length of simulation timestep in seconds.
+        id : float
+            Current flowing through capacitor in previous step. Not used in interpolation method.
         method : constant
             Type of integrating method represented by IntegratingRule enum.
         Returns
